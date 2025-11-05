@@ -1,0 +1,78 @@
+Week (Nov 4 - Nov 10) - Notes
+
+ - General Questions -
+
+a) How they load and index text files.
+b) What they use for retrieval.
+c) How they generate answers.
+
+
+1. Offline AI Systems
+
+- LocalGPT
+    - Uses Python
+    - Is a hybrid search engine
+    - Supports Multiple AI models - Ollama & HuggingFace models
+    - Has an API that can be used for RAG(Retrieval Augmentation Generation) Apps
+    - Has multi-format support
+    - Uses Contextual Retrieval
+    - Include features like:
+        - Source Attribution - (Referencing data)
+        - Smart Routing - (Choosing between RAG and direct LLM responses)
+        - Session-Aware History
+        - Answer Verification
+    - Uses 8GB of RAM
+    - Uses SQLite for Databases
+    - Uses a retrieval pipeline:
+        - LanceDB (Vector Search)
+        - BM25 (Keyword Search)
+        - Reranker (Ranking Model)
+
+    a) Indexing: The files are split into chunks and turned into embeddings (numerical vectors).
+    b) Retrieval: Uses a BM25 & Vector Search to find the best matches.
+    c) Answering: Top chunks + question is sent to a LLM(Llama) and the model generates the answer on the pc directly.
+
+
+- PrivateGPT
+    - Uses Python
+    - Is a RAG system
+    - Supports multiple AI models - (OpenAI APIs, HuggingFace & Ollama)
+    - Has OpenAI-compatible API for building RAG apps.
+    - Has multi-format support.
+    - Uses Contextual Retrieval
+    - Features include:
+        - Configurable LLM's and Embedding Models
+        - Configurable Vector Stores
+    - Uses vector-based retrieval
+
+    a) Indexing: The files are split into chunks and turned into embeddings.
+    b) Retrieval: Vector search is used.
+    c) Answering: Top chunks + question is sent to a LLM(Llama & HuggingFace) and the model generates the answer on the pc directly.
+
+
+- LM Studio
+    - Uses C++/Electron
+    - Is more of a local LLM chatbot than a hybrid search engine
+    - Supports multiple models (LLama, Phi, Mistral, etc...)
+    - Has OpenAI-compatible API for building RAG apps.
+    - Runs on Mac, Windows and Linux
+    - Uses Contextual Retrieval with Chat with Documents feature.
+    - Features include:
+        - Session History
+        - Model Management
+        - Prompt Templates
+    - Uses 8 - 16 RAM
+    - Uses vector-based retrieval
+    - llama.cpp is used for model execution
+
+    a) Indexing: The files are split into chunks and turned into embeddings.
+    b) Retrieval: Vector search is used.
+    c) Answering: Top chunks + question is sent to a LLM(Llama & HuggingFace) and the model generates the answer on the pc directly.
+
+** Definitions **
+* Contextual Retrieval improves search by using context to understand intent.
+* Vector search is finding text with similar meaning.
+* A numerical vector is an ordered list of numbers representing data.
+* Keyword search is finding text with the same words as the prompt.
+* Reranker is a small AI model that reorders both searches by relevance.
+* Configurable AI components are systems whose behaviour and features can change without retraining, this allows developers to customise components for specific tasks.

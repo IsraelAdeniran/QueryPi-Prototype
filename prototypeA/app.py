@@ -4,6 +4,7 @@ import time
 # SYSTEM PROMPT: Defines the assistant's behaviour
 SYSTEM_PROMPT = (
     "You are an educational assistant for QueryPi. "
+    "You must ALWAYS respond in English only. "
     "Speak clearly, explain simply, and be helpful to students. "
     "Keep answers short unless the user asks for more detail."
 )
@@ -15,24 +16,25 @@ MAX_HISTORY = 3
 
 # Build full prompt: system prompt + memory + latest user input
 def build_prompt(user_message):
-    history_text = ""
+    print("USING NEW BUILD PROMPT")  # Debug
+    # Use structured tags to avoid prompt contamination
+    parts = []
 
-    # Add recent conversation turns to the prompt
+    parts.append(f"<system>{SYSTEM_PROMPT}</system>\n")
+
+    # Replay recent conversation in structured tags
     for turn in conversation_history[-MAX_HISTORY:]:
-        history_text += f"User: {turn['user']}\nAssistant: {turn['bot']}\n"
+        parts.append(f"<user>{turn['user']}</user>")
+        parts.append(f"<assistant>{turn['bot']}</assistant>\n")
 
-    # Final composed prompt sent to the model
-    full_prompt = (
-        f"{SYSTEM_PROMPT}\n\n"
-        f"{history_text}"
-        f"User: {user_message}\nAssistant:"
-    )
+    # Add current user message
+    parts.append(f"<user>{user_message}</user>")
+    parts.append("<assistant>")
 
-    return full_prompt
-
+    return "\n".join(parts)
 
 # Send prompt to Ollama model and return the output
-def ask_ollama(prompt, model="phi3.5:latest"):
+def ask_ollama(prompt, model="qwen2.5:0.5b"):
     OLLAMA = r"C:\Users\adefo\AppData\Local\Programs\Ollama\ollama.exe"
 
     process = subprocess.Popen(
@@ -56,7 +58,13 @@ def ask_ollama(prompt, model="phi3.5:latest"):
     if not output.strip():
         return "[Model returned no output]"
 
-    return output.strip()
+    cleaned = output.strip()
+
+    # Remove model-generated user/assistant tags
+    for tag in ["<user>", "</user>", "<assistant>", "</assistant>", "<system>", "</system>"]:
+        cleaned = cleaned.replace(tag, "")
+
+    return cleaned.strip()
 
 # Log each interaction for debugging
 def log_interaction(user, bot):
@@ -91,7 +99,7 @@ def main():
             print("Memory cleared.\n")
             continue
 
-        # Normal Coversation Flow
+        # Normal Conversation Flow
         prompt = build_prompt(user_message)
         bot_response = ask_ollama(prompt)
 

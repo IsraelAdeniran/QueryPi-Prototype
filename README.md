@@ -18,7 +18,8 @@ It introduces offline LLM interaction using a simple, clear architecture.
 - Ollama installed
 - Model: qwen2.5:0.5b
 
-Pull the model:
+Pull the LLM:
+
     ollama pull qwen2.5:0.5b
 
 ### Run the Chatbot
@@ -56,7 +57,7 @@ It can:
 
 Pull the LLM:
 
-ollama pull llama3.2:latest
+    ollama pull llama3.2:latest
 
 ### Run
 

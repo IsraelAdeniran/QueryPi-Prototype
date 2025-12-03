@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Tuple
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 
 # Full path to the Ollama executable (same style as Prototype A)
 OLLAMA_EXE = r"C:\Users\adefo\AppData\Local\Programs\Ollama\ollama.exe"
@@ -39,7 +39,6 @@ def ask_ollama(prompt: str) -> str:
     output, error = process.communicate(input=prompt)
 
     # Clean Windows encoding issues
-    output = output.encode("utf-8", "replace").decode("utf-8")
 
     if process.returncode != 0:
         return f"[Model error]: {error or 'Unknown error'}"
@@ -78,43 +77,56 @@ def load_documents(doc_dir: str):
         else:
             continue
 
-        docs.extend(loader.load())
+        file_docs = loader.load()
+
+        # Add missing metadata for citations
+        for d in file_docs:
+            d.metadata["source"] = path
+
+        docs.extend(file_docs)
 
     return docs
 
 
 # Split documents into overlapping text chunks
 def split_documents(docs):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=80)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=600,
+        chunk_overlap=80,
+        separators=["\n\n", "\n", " ", ""]
+    )
     return splitter.split_documents(docs)
 
 
 # Build the vector database using BGE-small embeddings
 def build_vector_store(chunks):
+    os.makedirs(PERSIST_DIR, exist_ok=True)
+
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
 
-    vectordb = Chroma.from_documents(
+    # Load existing DB instead of rebuilding every run
+    if os.path.exists(os.path.join(PERSIST_DIR, "chroma.sqlite3")):
+        return Chroma(
+            persist_directory=PERSIST_DIR,
+            embedding_function=embeddings
+        )
+
+    return Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
         persist_directory=PERSIST_DIR
     )
 
-    return vectordb
-
 
 # Rewrite the question so retrieval works better
 def rewrite_query(history: List[Dict[str, str]], question: str) -> str:
-    history_lines = []
-    for turn in history[-3:]:
-        history_lines.append(f"Student: {turn['user']}")
-        history_lines.append(f"Tutor: {turn['bot']}")
-
-    history_text = "\n".join(history_lines)
-
+    # Rewrite only latest question
     prompt = (
-        "Rewrite the student's question so it is clearer and easier to search. "
+        "Rewrite ONLY the student's latest question. "
+        "Ignore all previous conversation history. "
+        "Do NOT mix topics. "
+        "Return a short, clearer, more searchable query. "
         "Do NOT answer the question.\n\n"
-        f"{history_text}\n\n"
         f"Original question: {question}\n\n"
         "Rewritten:"
     )
@@ -132,7 +144,7 @@ def retrieve_with_scores(vectordb: Chroma, query: str, k: int = 5):
 def build_context(docs_and_scores) -> Tuple[str, float, List[Dict[str, Any]]]:
     context_parts = []
     citations = []
-    best_score = 0.0
+    best_similarity = 0.0
 
     for doc, score in docs_and_scores:
         meta = doc.metadata or {}
@@ -141,14 +153,20 @@ def build_context(docs_and_scores) -> Tuple[str, float, List[Dict[str, Any]]]:
 
         context_parts.append(doc.page_content)
 
-        numeric_score = float(score)
-        if numeric_score > best_score:
-            best_score = numeric_score
+        # Convert distance → similarity
+        similarity = 1 - float(score)
 
-        citations.append({"source": source, "page": page, "score": numeric_score})
+        if similarity > best_similarity:
+            best_similarity = similarity
+
+        citations.append({
+            "source": source,
+            "page": page,
+            "score": similarity
+        })
 
     context_text = "\n\n---\n\n".join(context_parts)
-    return context_text, best_score, citations
+    return context_text, best_similarity, citations
 
 
 # Generate a grounded answer using the context + conversation history
@@ -166,7 +184,8 @@ def generate_answer(history: List[Dict[str, str]],
     prompt = (
         "You are QueryPi, an offline school tutor. "
         "Use ONLY the information in the context. "
-        "If the answer is not in the context, say you are not sure.\n\n"
+        "If the answer is not in the context, say you are not sure. "
+        "Do NOT invent information.\n\n"
         f"{history_text}\n\n"
         "Context:\n"
         "---------------------\n"

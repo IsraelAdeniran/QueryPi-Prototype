@@ -37,8 +37,19 @@ def print_answer(result: Dict[str, Any]):
     print()
 
     confidence = result.get("confidence", 0.0)
-    print(f"(Estimated confidence: {confidence:.2f})")
 
+    # Similarity score
+    print(f"(Similarity score: {confidence:.2f})")
+
+    # Show if RAG was used or skipped
+    if confidence == 0.0 and result.get("citations", []) == []:
+        print("(RAG not used — either a conversational question or a topic not covered by your documents)")
+        print("Sources: [no document sources used]\n")
+        return
+    else:
+        print("(RAG used — academic question detected from your documents)")
+
+    # Only print rewritten query if RAG was used
     rewritten = result.get("rewritten_query", "")
     if rewritten:
         print(f"Rewritten search query: {rewritten}")

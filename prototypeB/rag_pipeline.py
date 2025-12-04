@@ -18,7 +18,7 @@ OLLAMA_EXE = r"C:\Users\adefo\AppData\Local\Programs\Ollama\ollama.exe"
 LLM_MODEL_NAME = "llama3.2:latest"
 
 # Embedding model used for creating vector representations
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en"
+EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"
 
 # Where Chroma will save the vector index
 PERSIST_DIR = "db"
@@ -39,7 +39,6 @@ def ask_ollama(prompt: str) -> str:
     output, error = process.communicate(input=prompt)
 
     # Clean Windows encoding issues
-
     if process.returncode != 0:
         return f"[Model error]: {error or 'Unknown error'}"
 
@@ -47,6 +46,23 @@ def ask_ollama(prompt: str) -> str:
         return "[Model returned no output]"
 
     return output.strip()
+
+
+# Classify whether question is academic (yes/no)
+def is_academic_question(question: str) -> bool:
+    classify_prompt = (
+        "You are a classifier. Determine if the student's question is an academic "
+        "question related to school subjects (math, science, history, geography, etc.). "
+        "Answer ONLY 'yes' or 'no'.\n\n"
+        f"Question: {question}\n"
+        "Answer:"
+    )
+
+    result = ask_ollama(classify_prompt).strip().lower()
+
+    if result.startswith("y"):
+        return True
+    return False
 
 
 # Load all PDF and TXT documents from the documents folder
@@ -79,9 +95,9 @@ def load_documents(doc_dir: str):
 
         file_docs = loader.load()
 
-        # Add missing metadata for citations
+        # Cleaner metadata for citations
         for d in file_docs:
-            d.metadata["source"] = path
+            d.metadata["source"] = os.path.basename(path)
 
         docs.extend(file_docs)
 
@@ -91,8 +107,8 @@ def load_documents(doc_dir: str):
 # Split documents into overlapping text chunks
 def split_documents(docs):
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=600,
-        chunk_overlap=80,
+        chunk_size=1600,
+        chunk_overlap=200,
         separators=["\n\n", "\n", " ", ""]
     )
     return splitter.split_documents(docs)
@@ -120,13 +136,12 @@ def build_vector_store(chunks):
 
 # Rewrite the question so retrieval works better
 def rewrite_query(history: List[Dict[str, str]], question: str) -> str:
-    # Rewrite only latest question
+    # FIX 1: Enforce STRICT rewrite behaviour
     prompt = (
-        "Rewrite ONLY the student's latest question. "
-        "Ignore all previous conversation history. "
-        "Do NOT mix topics. "
-        "Return a short, clearer, more searchable query. "
-        "Do NOT answer the question.\n\n"
+        "Rewrite the student's question using simple keywords. "
+        "Add subject-specific keywords (e.g., history, biology, maths) to help retrieve the correct document topic."
+        "Do not explain. Do not add anything. Do not change the meaning. "
+        "Return ONLY the rewritten question.\n\n"
         f"Original question: {question}\n\n"
         "Rewritten:"
     )
@@ -136,7 +151,7 @@ def rewrite_query(history: List[Dict[str, str]], question: str) -> str:
 
 
 # Retrieve the top-k results (document chunks + similarity scores)
-def retrieve_with_scores(vectordb: Chroma, query: str, k: int = 5):
+def retrieve_with_scores(vectordb: Chroma, query: str, k: int = 8):
     return vectordb.similarity_search_with_relevance_scores(query, k=k)
 
 
@@ -181,10 +196,12 @@ def generate_answer(history: List[Dict[str, str]],
 
     history_text = "\n".join(history_lines)
 
+    # Allow ignoring irrelevant context
     prompt = (
         "You are QueryPi, an offline school tutor. "
-        "Use ONLY the information in the context. "
-        "If the answer is not in the context, say you are not sure. "
+        "If the retrieved context is not relevant to the student's question, "
+        "ignore the context and answer normally. "
+        "If the context contains relevant facts, use them to answer. "
         "Do NOT invent information.\n\n"
         f"{history_text}\n\n"
         "Context:\n"
@@ -204,8 +221,23 @@ def rag_answer(vectordb: Chroma,
                history: List[Dict[str, str]],
                question: str) -> Dict[str, Any]:
 
+    # FIX: If question is not academic → skip RAG entirely
+    if not is_academic_question(question):
+        answer = ask_ollama(
+            f"You are QueryPi, a friendly offline tutor. "
+            f"Answer the student's question naturally.\n\n"
+            f"Question: {question}\n"
+            "Answer:"
+        )
+        return {
+            "answer": answer.strip(),
+            "confidence": 0.0,
+            "citations": [],
+            "rewritten_query": question
+        }
+
     rewritten = rewrite_query(history, question)
-    docs_and_scores = retrieve_with_scores(vectordb, rewritten, k=5)
+    docs_and_scores = retrieve_with_scores(vectordb, rewritten, k=8)
 
     if not docs_and_scores:
         return {
@@ -216,6 +248,21 @@ def rag_answer(vectordb: Chroma,
         }
 
     context, best_score, citations = build_context(docs_and_scores)
+
+    # If context quality is too low, ignore RAG
+    if best_score < 0.35:
+        answer = ask_ollama(
+            f"You are QueryPi, a friendly offline tutor. "
+            f"Answer the student's question normally.\n\n"
+            f"Question: {question}\n"
+            "Answer:"
+        )
+        return {
+            "answer": answer.strip(),
+            "confidence": float(best_score),
+            "citations": citations,
+            "rewritten_query": rewritten
+        }
 
     answer = generate_answer(history, question, context)
 

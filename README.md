@@ -74,4 +74,42 @@ prototypeB/data/documents/
 
 ### Files
 **app.py**   -        Main chatbot  
-**rag_pipeline.py**  - RAG pipleine
+**rag_pipeline.py**  - RAG pipeline
+
+
+## Prototype C – Streamlit RAG Tutor Interface (QueryPi)
+
+This prototype builds on Prototype B by adding a simple graphical interface for interacting with the offline RAG tutor. It allows teachers to upload documents, rebuild the vector database, and ask questions in an easy-to-use interface.
+
+It can:
+- Upload and manage PDF documents
+- Rebuild the vector database automatically when new files are added
+- Load PDF/TXT documents through the existing RAG pipeline
+- Split them into text chunks
+- Embed them using BAAI/bge-large-en-v1.5
+- Store embeddings in ChromaDB
+- Rewrite questions using llama3.2:latest
+- Retrieve relevant chunks
+- Build a document-grounded context
+- Generate answers with confidence and citations
+- Show when RAG is used or skipped
+
+### Requirements
+
+    pip install streamlit langchain langchain-community chromadb pypdf sentence-transformers langchain-huggingface
+
+Pull the LLM:
+
+    ollama pull llama3.2:latest
+
+### Run
+
+    streamlit run gui_app.py
+
+Place PDFs in:
+
+prototypeC/data/documents/
+
+### Files
+**gui_app.py**        - Streamlit interface  
+**rag_pipeline.py**   - RAG pipeline (same as Prototype B)

@@ -17,10 +17,21 @@ DOCUMENT_FOLDER = "C:/QueryPi-Prototype/prototypeC/data/documents"
 @st.cache_resource
 def initialise_system():
     docs = load_documents(DOCUMENT_FOLDER)
-    chunks = split_documents(docs)
-    vectordb = build_vector_store(chunks)
-    return vectordb, len(docs), len(chunks)
 
+    # If no documents exist, return empty state
+    if len(docs) == 0:
+        return None, 0, 0
+
+    # Otherwise process normally
+    chunks = split_documents(docs)
+
+    # If chunking failed or produced nothing
+    if len(chunks) == 0:
+        return None, len(docs), 0
+
+    vectordb = build_vector_store(chunks)
+
+    return vectordb, len(docs), len(chunks)
 
 st.set_page_config(page_title="QueryPi – Prototype C", layout="wide")
 st.title("QueryPi – Prototype C")

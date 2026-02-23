@@ -12,14 +12,13 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 # Full path to the Ollama executable (same style as Prototype A & B)
-OLLAMA_EXE = r"C:\Users\adefo\AppData\Local\Programs\Ollama\ollama.exe"
+OLLAMA_EXE = os.getenv("QUERYPI_OLLAMA_BIN", "ollama")
 
 # LLM model for rewriting queries and generating answers
-LLM_MODEL_NAME = "llama3.2:latest"
+LLM_MODEL_NAME = "llama3.2:1b"
 
 # Embedding model used for creating vector representations
-EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"
-
+EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 # Where Chroma will save the vector index
 PERSIST_DIR = "db"
 

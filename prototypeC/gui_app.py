@@ -10,8 +10,12 @@ from rag_pipeline import (
     rag_answer
 )
 
-DOCUMENT_FOLDER = "C:/QueryPi-Prototype/prototypeC/data/documents"
+DOCUMENT_FOLDER = os.getenv(
+    "QUERYPI_DOCUMENTS_DIR",
+    os.path.join("data", "documents")
+)
 
+os.makedirs(DOCUMENT_FOLDER, exist_ok=True)
 
 # Initialise system
 @st.cache_resource

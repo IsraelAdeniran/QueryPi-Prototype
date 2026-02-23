@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Tuple
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings#
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain_chroma import Chroma
 
 # Full path to the Ollama executable (same style as Prototype A & B)
@@ -19,6 +19,7 @@ LLM_MODEL_NAME = "llama3.2:1b"
 
 # Embedding model used for creating vector representations
 EMBEDDING_MODEL_NAME = "nomic-embed-text"
+
 # Where Chroma will save the vector index
 PERSIST_DIR = "db"
 

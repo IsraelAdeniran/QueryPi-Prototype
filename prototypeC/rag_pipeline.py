@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Tuple
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import OllamaEmbeddings#
 from langchain_chroma import Chroma
 
 # Full path to the Ollama executable (same style as Prototype A & B)
@@ -18,7 +18,7 @@ OLLAMA_EXE = os.getenv("QUERYPI_OLLAMA_BIN", "ollama")
 LLM_MODEL_NAME = "llama3.2:1b"
 
 # Embedding model used for creating vector representations
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL_NAME = "nomic-embed-text"
 # Where Chroma will save the vector index
 PERSIST_DIR = "db"
 
@@ -117,7 +117,7 @@ def split_documents(docs):
 def build_vector_store(chunks):
     os.makedirs(PERSIST_DIR, exist_ok=True)
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL_NAME)
 
     # Load existing DB instead of rebuilding every run
     if os.path.exists(os.path.join(PERSIST_DIR, "chroma.sqlite3")):
